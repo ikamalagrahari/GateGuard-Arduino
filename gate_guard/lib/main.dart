@@ -1,17 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'package:mongo_dart/mongo_dart.dart' as mongo;
+import 'api_service.dart';
 
-String mongoUri =
-    "mongodb+srv://gondekarrutvik:hQyisHFDaAAnb41j@cluster0.b4u84.mongodb.net/gateguard";
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // var db = await mongo.Db.create(
-  //     "mongodb+srv://gondekarrutvik:hQyisHFDaAAnb41j@cluster.mongodb.net/gateguard");
-  // await db.open();
+void main() {
   runApp(const MyApp());
 }
 
@@ -34,33 +25,23 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  // final String mongoUri = mongoUri; // Replace with your MongoDB URI
-
-  Future<Map<String, dynamic>?> loginUser(String email, String password) async {
-    var db = await mongo.Db.create(mongoUri);
-    await db.open();
-    var collection = db.collection('users');
-    var user = await collection
-        .findOne(mongo.where.eq('email', email).eq('password', password));
-    await db.close();
-    return user;
-  }
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   void _handleLogin() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
-    var user = await loginUser(email, password);
-    if (user != null) {
+    var result = await ApiService.loginUser(email, password);
+    if (result != null) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => HomeScreen(user: user)),
+        MaterialPageRoute(
+            builder: (context) => HomeScreen(user: result['user'])),
       );
     } else {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Invalid Credentials')));
+          .showSnackBar(const SnackBar(content: Text('Invalid Credentials')));
     }
   }
 
@@ -72,23 +53,16 @@ class _LoginPageState extends State<LoginPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const Center(
-                child: Text("GateGuard", style: TextStyle(fontSize: 24))),
-            const SizedBox(height: 20),
+            const Text("GateGuard", style: TextStyle(fontSize: 24)),
             TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
-            ),
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: 'Email')),
             TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: 'Password'),
+                obscureText: true),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _handleLogin,
-              child: const Text('Login'),
-            ),
+            ElevatedButton(onPressed: _handleLogin, child: const Text('Login')),
           ],
         ),
       ),
@@ -98,7 +72,7 @@ class _LoginPageState extends State<LoginPage> {
 
 class HomeScreen extends StatefulWidget {
   final Map<String, dynamic> user;
-  HomeScreen({required this.user});
+  const HomeScreen({Key? key, required this.user}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -109,229 +83,117 @@ class _HomeScreenState extends State<HomeScreen> {
   int authorizedCards = 0;
   int totalUsers = 0;
   List<dynamic> userCards = [];
+  List<dynamic> cardScans = [];
 
   @override
   void initState() {
     super.initState();
-    fetchCounts();
+    _fetchDashboardData();
+    _fetchCardScans();
   }
 
-  Future<void> fetchCounts() async {
-    var db = await mongo.Db.create(mongoUri);
-    await db.open();
-    var usersCollection = db.collection('users');
-
-    int cardsCount = 0;
-    int usersCount = 0;
-    List<dynamic> userCardsList = [];
-
-    if (widget.user['role'] == 'admin') {
-      var authorizedCardsCollection = db.collection('authorized_cards');
-      cardsCount = await authorizedCardsCollection.count();
-      usersCount = await usersCollection.count(mongo.where.eq('role', 'user'));
-    } else {
-      userCardsList = widget.user['cards'] ?? [];
+  Future<void> _fetchDashboardData() async {
+    var data = await ApiService.fetchDashboardData(
+        widget.user['_id'], widget.user['role']);
+    if (data != null) {
+      setState(() {
+        authorizedCards = data['authorizedCards'];
+        totalUsers = data['totalUsers'];
+        userCards = data['userCards'] ?? [];
+      });
     }
+  }
 
-    await db.close();
-
+  Future<void> _fetchCardScans() async {
+    var scans = await ApiService.fetchCardScans(
+        widget.user['_id'], widget.user['role'], userCards);
     setState(() {
-      authorizedCards = cardsCount;
-      totalUsers = usersCount;
-      userCards = userCardsList;
+      cardScans = scans;
     });
-
-    print("User Cards: ${widget.user['cards']}");
-
-    await fetchCardScans();
   }
 
-  Widget buildHomeScreen() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Welcome, ${widget.user['name']}!',
-              style:
-                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          if (widget.user['role'] == 'admin') ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                buildInfoCard(
-                    'Authorized Cards', authorizedCards, Icons.credit_card),
-                const SizedBox(width: 10),
-                buildInfoCard('Users', totalUsers, Icons.people),
-              ],
-            ),
-          ] else ...[
-            Center(
-              child: buildInfoCard(
-                  'Your Cards', userCards.length, Icons.credit_card),
-            ),
+  Widget _buildInfoCard(String title, int count, IconData icon) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Icon(icon, size: 40),
+            const SizedBox(height: 10),
+            Text(title, style: const TextStyle(fontSize: 18)),
+            Text('$count',
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           ],
-        ],
-      ),
-    );
-  }
-
-  static Widget buildInfoCard(String title, int count, IconData icon) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {},
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.blue,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 40, color: Colors.white),
-              const SizedBox(height: 10),
-              Text(title,
-                  style: const TextStyle(color: Colors.white, fontSize: 16)),
-              Text('$count',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold)),
-            ],
-          ),
         ),
       ),
     );
   }
 
-  List<Map<String, dynamic>> cardScans = [];
-  Future<void> fetchCardScans() async {
-    var db = await mongo.Db.create(mongoUri);
-    await db.open();
-    var cardScansCollection = db.collection('card_scans');
-    var authorizedCardsCollection = db.collection('authorized_cards');
-    var usersCollection = db.collection('users');
-
-    List<Map<String, dynamic>> scans = [];
-
-    if (widget.user['role'] == 'admin') {
-      // If admin, fetch all card scans
-      print("Fetching all card scans...");
-      scans = await cardScansCollection
-          .find(mongo.where.sortBy('timestamp', descending: true))
-          .toList() as List<Map<String, dynamic>>;
-    } else {
-      // If user, fetch only the card scans for their cards
-      List<dynamic> userCards = widget.user['cards'] ?? [];
-
-      if (userCards.isEmpty) {
-        print("No card_uids found for user.");
-        setState(() {
-          cardScans = [];
-        });
-        await db.close();
-        return;
-      }
-
-      // scans = await cardScansCollection
-      //     .find(mongo.where.eq('card_uid', widget.user['cards'][0]))
-      //     .toList(); // Convert the stream to a list
-
-      // Temporarily replace the query with this for testing
-      for (var cardUid in userCards) {
-        scans.addAll(await cardScansCollection
-            .find(mongo.where.eq('card_uid', cardUid))
-            .toList());
-      }
-
-// Now sort the list
-      scans.sort((a, b) {
-        DateTime timestampA = DateTime.parse(a['timestamp']);
-        DateTime timestampB = DateTime.parse(b['timestamp']);
-        return timestampB.compareTo(timestampA); // Descending order
-      });
-    }
-
-    // Process the scans
-    for (var scan in scans) {
-      try {
-        // Find the card_uid in authorized_cards collection to get the associated card details
-        var authorizedCard = await authorizedCardsCollection
-            .findOne(mongo.where.eq('card_uid', scan['card_uid']));
-
-        if (authorizedCard != null) {
-          // Assuming each authorized card document has a 'user' field that references the user
-          var userId = authorizedCard['user'];
-
-          if (userId != null) {
-            // Fetch the user associated with this card
-            var user =
-                await usersCollection.findOne(mongo.where.eq('_id', userId));
-
-            if (user != null && user.containsKey('name')) {
-              scan['user_name'] = user['name'] ?? 'Unknown User';
-            } else {
-              scan['user_name'] = 'Unknown User';
-            }
-          } else {
-            scan['user_name'] = 'Unknown User'; // In case user_id is not found
-          }
-        } else {
-          scan['user_name'] =
-              'Unknown User'; // In case card_uid is not found in authorized_cards
-        }
-
-        DateTime timestamp = DateTime.parse(scan['timestamp']);
-        scan['formatted_timestamp'] =
-            DateFormat('dd-MM-yyyy hh:mm:ss a').format(timestamp);
-      } catch (e) {
-        print("Error processing scan: $e");
-      }
-    }
-
-    if (mounted) {
-      setState(() {
-        cardScans = scans;
-      });
-    }
-
-    await db.close();
-  }
-
-  Future<void> _refreshHistory() async {
-    await fetchCardScans(); // Refetch card scans
-  }
-
-  Widget buildHistoryScreen() {
-    if (cardScans.isEmpty) {
-      return const Center(child: Text("No scan history available"));
-    }
+  Widget _buildHomeScreen() {
     return RefreshIndicator(
-      // Wrap ListView with RefreshIndicator
-      onRefresh: _refreshHistory,
-      child: ListView.builder(
+      onRefresh: _fetchDashboardData, // Correct function name for refreshing
+      child: SingleChildScrollView(
+        physics:
+            const AlwaysScrollableScrollPhysics(), // Allow pull even when content is small
         padding: const EdgeInsets.all(16.0),
-        itemCount: cardScans.length,
-        itemBuilder: (context, index) {
-          var scan = cardScans[index];
-          return Card(
-            child: ListTile(
-              leading: Icon(
-                scan['accessgranted'] ? Icons.check_circle : Icons.cancel,
-                color: scan['accessgranted'] ? Colors.green : Colors.red,
-              ),
-              title: Text('User: ${scan['user_name']}'),
-              subtitle: Text('Time: ${scan['formatted_timestamp']}'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Welcome, ${widget.user['name']}!',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-          );
-        },
+            const SizedBox(height: 20),
+            if (widget.user['role'] == 'admin') ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildInfoCard(
+                      'Authorized Cards', authorizedCards, Icons.credit_card),
+                  const SizedBox(width: 10),
+                  _buildInfoCard('Users', totalUsers, Icons.people),
+                ],
+              ),
+            ] else ...[
+              Center(
+                child: _buildInfoCard(
+                    'Your Cards', userCards.length, Icons.credit_card),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  List<Widget> _widgetOptions = [];
+  Widget _buildHistoryScreen() {
+    return RefreshIndicator(
+      onRefresh: _fetchCardScans,
+      child: cardScans.isEmpty
+          ? const Center(child: Text("No scan history available"))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16.0),
+              itemCount: cardScans.length,
+              itemBuilder: (context, index) {
+                var scan = cardScans[index];
+                return Card(
+                  child: ListTile(
+                    leading: Icon(
+                        scan['accessgranted']
+                            ? Icons.check_circle
+                            : Icons.cancel,
+                        color:
+                            scan['accessgranted'] ? Colors.green : Colors.red),
+                    title: Text('User: ${scan['user_name']}'),
+                    subtitle: Text(
+                        'Time: ${DateFormat('dd-MM-yyyy hh:mm:ss a').format(DateTime.parse(scan['timestamp']))}'),
+                  ),
+                );
+              },
+            ),
+    );
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -342,17 +204,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, // User must tap button!
+      barrierDismissible: false, // User must tap a button to dismiss
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirm Logout'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Are you sure you want to log out?'),
-              ],
-            ),
-          ),
+          content: const Text('Are you sure you want to log out?'),
           actions: <Widget>[
             TextButton(
               child: const Text('Cancel'),
@@ -363,10 +219,10 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               child: const Text('Logout'),
               onPressed: () {
-                // Navigate back to the login page and remove all routes in the stack
+                // Perform logout actions (e.g., clear stored tokens)
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => LoginPage()),
-                  (Route<dynamic> route) => false,
+                  (Route<dynamic> route) => false, // Remove all previous routes
                 );
               },
             ),
@@ -378,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> _widgetOptions = [buildHomeScreen(), buildHistoryScreen()];
+    List<Widget> _widgetOptions = [_buildHomeScreen(), _buildHistoryScreen()];
 
     return Scaffold(
       appBar: AppBar(
@@ -387,15 +243,14 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              _showLogoutConfirmationDialog(
-                  context); // Show the confirmation dialog
+              _showLogoutConfirmationDialog(context);
             },
           ),
         ],
       ),
       body: _widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
+        items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
         ],
