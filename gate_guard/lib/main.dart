@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'api_service.dart';
+import 'secondary_screens.dart';
 
 void main() {
   runApp(const MyApp());
@@ -130,6 +131,33 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _navigateToAuthorizedCards() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AuthorizedCardsPage(),
+      ),
+    );
+  }
+
+  void _navigateToUsersList() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UsersListPage(),
+      ),
+    );
+  }
+
+  void _navigatetoUserCards() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserCardsPage(userId: widget.user['_id']),
+      ),
+    );
+  }
+
   Widget _buildHomeScreen() {
     return RefreshIndicator(
       onRefresh: _fetchDashboardData, // Correct function name for refreshing
@@ -149,16 +177,24 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildInfoCard(
-                      'Authorized Cards', authorizedCards, Icons.credit_card),
+                  GestureDetector(
+                    onTap: _navigateToAuthorizedCards,
+                    child: _buildInfoCard(
+                        'Authorized Cards', authorizedCards, Icons.credit_card),
+                  ),
                   const SizedBox(width: 10),
-                  _buildInfoCard('Users', totalUsers, Icons.people),
+                  GestureDetector(
+                      onTap: _navigateToUsersList,
+                      child: _buildInfoCard('Users', totalUsers, Icons.people)),
                 ],
               ),
             ] else ...[
               Center(
-                child: _buildInfoCard(
-                    'Your Cards', userCards.length, Icons.credit_card),
+                child: GestureDetector(
+                  onTap: _navigatetoUserCards,
+                  child: _buildInfoCard(
+                      'Your Cards', userCards.length, Icons.credit_card),
+                ),
               ),
             ],
           ],

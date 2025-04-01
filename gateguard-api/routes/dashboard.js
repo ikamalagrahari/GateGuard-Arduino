@@ -15,7 +15,7 @@ router.post("/dashboard", async (req, res) => {
 
     if (role === "admin") {
       authorizedCards = await AuthorizedCard.countDocuments();
-      totalUsers = await User.countDocuments({ role: "user" });
+      totalUsers = await User.countDocuments();
     } else {
       const user = await User.findById(userId);
       if (user) userCards = user.cards || [];
