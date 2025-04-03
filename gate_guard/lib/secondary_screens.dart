@@ -118,6 +118,7 @@ class _AuthorizedCardsScreenState extends State<AuthorizedCardsPage> {
                   return Card(
                     margin: const EdgeInsets.symmetric(
                         vertical: 8.0, horizontal: 16.0),
+                    elevation: 3,
                     child: ListTile(
                       leading: const Icon(Icons.credit_card),
                       title: Text("Card UID: ${card['card_uid']}"),

@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://192.168.1.9:5000/api"; // Home WIFI
-  // static const String baseUrl = "http://192.168.20.175:5000/api";  // Mobile Physical
+  // static const String baseUrl = "http://192.168.1.9:5000/api"; // Home WIFI
   // static const String baseUrl =
-  //     "http://192.168.187.132:5000/api"; // Mobile Hotspot
+  //     "http://192.168.20.175:5000/api"; // Mobile Physical
+  static const String baseUrl =
+      "http://192.168.187.132:5000/api"; // Mobile Hotspot
 
   static Future<Map<String, dynamic>?> loginUser(
       String email, String password) async {

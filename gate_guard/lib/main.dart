@@ -28,6 +28,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true; // To toggle password visibility
 
   void _handleLogin() async {
     String email = _emailController.text.trim();
@@ -41,30 +42,97 @@ class _LoginPageState extends State<LoginPage> {
             builder: (context) => HomeScreen(user: result['user'])),
       );
     } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Invalid Credentials')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid Credentials')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Text("GateGuard", style: TextStyle(fontSize: 24)),
-            TextField(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 50),
+              // Logo/Icon
+              const CircleAvatar(
+                radius: 60,
+                backgroundColor: Colors.blue,
+                child: Icon(Icons.lock, color: Colors.white, size: 40),
+              ),
+              const SizedBox(height: 40),
+              // Title
+              const Text(
+                "Welcome to GateGuard!",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 40),
+
+              // Email Field
+              TextField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email')),
-            TextField(
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: const Icon(Icons.email, color: Colors.blue),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Password Field with visibility toggle
+              TextField(
                 controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
-                obscureText: true),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: _handleLogin, child: const Text('Login')),
-          ],
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: const Icon(Icons.lock, color: Colors.blue),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: Colors.blue,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // Login Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                  child: const Text("LOGIN", style: TextStyle(fontSize: 16)),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -115,16 +183,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildInfoCard(String title, int count, IconData icon) {
     return Card(
+      color: Colors.blue, // Set card background to blue
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14), // Rounded corners
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Icon(icon, size: 40),
+            Icon(icon, size: 40, color: Colors.white),
             const SizedBox(height: 10),
-            Text(title, style: const TextStyle(fontSize: 18)),
-            Text('$count',
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center),
+            Text(
+              '$count',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white, // White count for readability
+              ),
+            ),
           ],
         ),
       ),
@@ -174,26 +256,37 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 20),
             if (widget.user['role'] == 'admin') ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  GestureDetector(
-                    onTap: _navigateToAuthorizedCards,
-                    child: _buildInfoCard(
-                        'Authorized Cards', authorizedCards, Icons.credit_card),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                      onTap: _navigateToUsersList,
-                      child: _buildInfoCard('Users', totalUsers, Icons.people)),
-                ],
+              Center(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: _navigateToAuthorizedCards,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: _buildInfoCard('Authorized Cards',
+                            authorizedCards, Icons.credit_card),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                        onTap: _navigateToUsersList,
+                        child: SizedBox(
+                            width: double.infinity,
+                            child: _buildInfoCard(
+                                'Users', totalUsers, Icons.people))),
+                  ],
+                ),
               ),
             ] else ...[
               Center(
                 child: GestureDetector(
                   onTap: _navigatetoUserCards,
-                  child: _buildInfoCard(
-                      'Your Cards', userCards.length, Icons.credit_card),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: _buildInfoCard(
+                        'Your Cards', userCards.length, Icons.credit_card),
+                  ),
                 ),
               ),
             ],
@@ -223,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             scan['accessgranted'] ? Colors.green : Colors.red),
                     title: Text('User: ${scan['user_name']}'),
                     subtitle: Text(
-                        'Time: ${DateFormat('dd-MM-yyyy hh:mm:ss a').format(DateTime.parse(scan['timestamp']))}'),
+                        'Date: ${DateFormat('dd-MM-yyyy hh:mm:ss a').format(DateTime.parse(scan['timestamp']))}'),
                   ),
                 );
               },
