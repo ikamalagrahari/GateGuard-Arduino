@@ -18,6 +18,7 @@ mongoose
 
 app.use("/api", require("./routes/dashboard"));
 app.use("/api/create", require("./routes/create"));
+app.use("/api/update-remove", require("./routes/update-remove"));
 app.use("/api/info", require("./routes/info"));
 app.use("/api/auth", require("./routes/auth"));
 

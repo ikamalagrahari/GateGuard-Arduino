@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://192.168.1.10:5000/api"; // Home WIFI
+  static const String baseUrl = "http://192.168.1.9:5000/api"; // Home WIFI
   // static const String baseUrl = "http://192.168.20.175:5000/api";  // Mobile Physical
   // static const String baseUrl =
   //     "http://192.168.187.132:5000/api"; // Mobile Hotspot
@@ -46,7 +46,6 @@ class ApiService {
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
-      print(response.body);
     }
     return [];
   }
@@ -153,6 +152,80 @@ class ApiService {
       }
     } catch (e) {
       print("Error: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> updateAuthorizedCard(
+      String cardId, String cardUid, String userId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/update-remove/authorized-card/$cardId'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"card_uid": cardUid, "user_id": userId}),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      print("Error updating card: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> deleteAuthorizedCard(String cardId) async {
+    try {
+      final response = await http
+          .delete(Uri.parse('$baseUrl/update-remove/authorized-card/$cardId'));
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      print("Error deleting card: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> updateUser(String userId, String name, String email,
+      String role, String? password) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/update-remove/user/$userId'),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "name": name,
+          "email": email,
+          "role": role,
+          if (password != null && password.isNotEmpty)
+            "password": password, // Only send password if provided
+        }),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Error updating user: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> deleteUser(String userId) async {
+    try {
+      final response =
+          await http.delete(Uri.parse('$baseUrl/update-remove/user/$userId'));
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      print("Error deleting user: $e");
       return false;
     }
   }
