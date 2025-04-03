@@ -18,7 +18,6 @@ except Exception as e:
 
 # Sample authorized card UIDs (replace this with real DB logic)
 authorized_cards = [card['card_uid'] for card in authorized_cards_doc]
-print(authorized_cards)
 
 # SQLite setup
 sqlite_lock = threading.Lock()
@@ -51,6 +50,12 @@ print("Listening for RFID scans...")
 
 # Check if a card UID is authorized
 def is_access_granted(card_uid):
+    try:
+        authorized_cards_doc = authorizedCardsCollection.find({}, {'_id': 0, 'card_uid': 1})
+        authorized_cards = [card['card_uid'] for card in authorized_cards_doc]
+    except Exception as e:
+        print(f"MongoDB error: {e}")
+        return False
     return card_uid in authorized_cards
 
 # Store data in SQLite with access status
