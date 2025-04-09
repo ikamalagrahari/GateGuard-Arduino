@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/**/*.dart": {
+    "index/**/*.dart": {
       "runtime": "vercel_edge@0.1.0"
     }
   }
