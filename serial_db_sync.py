@@ -5,8 +5,19 @@ from datetime import datetime
 import threading
 import time
 
+# MongoDB setup
+try:
+    client = MongoClient('mongodb+srv://gondekarrutvik:hQyisHFDaAAnb41j@cluster0.b4u84.mongodb.net/?retryWrites=true&w=majority&appName=cluster0')
+    db = client['gateguard']
+    cardScansCollection = db['cardscans']   # Renamed because of mongoose namespace renaming
+    authorizedCardsCollection = db['authorizedcards']
+    authorized_cards_doc = authorizedCardsCollection.find({}, {'_id': 0, 'card_uid': 1})
+except Exception as e:
+    print(f"MongoDB connection error: {e}")
+    exit()
+
 # Sample authorized card UIDs (replace this with real DB logic)
-authorized_cards = ["0642BB02"]
+authorized_cards = [card['card_uid'] for card in authorized_cards_doc]
 
 # SQLite setup
 sqlite_lock = threading.Lock()
@@ -21,14 +32,6 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# MongoDB setup
-try:
-    client = MongoClient('mongodb+srv://gondekarrutvik:hQyisHFDaAAnb41j@cluster0.b4u84.mongodb.net/?retryWrites=true&w=majority&appName=cluster0')
-    db = client['gateguard']
-    collection = db['card_scans']
-except Exception as e:
-    print(f"MongoDB connection error: {e}")
-    exit()
 
 # Serial setup
 try:
@@ -47,6 +50,12 @@ print("Listening for RFID scans...")
 
 # Check if a card UID is authorized
 def is_access_granted(card_uid):
+    try:
+        authorized_cards_doc = authorizedCardsCollection.find({}, {'_id': 0, 'card_uid': 1})
+        authorized_cards = [card['card_uid'] for card in authorized_cards_doc]
+    except Exception as e:
+        print(f"MongoDB error: {e}")
+        return False
     return card_uid in authorized_cards
 
 # Store data in SQLite with access status
@@ -68,7 +77,7 @@ def sync_to_mongo(card_uid):
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "accessgranted": access_granted
         }
-        collection.insert_one(data)
+        cardScansCollection.insert_one(data)
     except Exception as e:
         print(f"MongoDB error: {e}")
 
