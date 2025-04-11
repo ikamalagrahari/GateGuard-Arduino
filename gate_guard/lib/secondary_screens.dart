@@ -8,6 +8,7 @@ class AuthorizedCardsPage extends StatefulWidget {
 
 class _AuthorizedCardsScreenState extends State<AuthorizedCardsPage> {
   List<Map<String, dynamic>> authorizedCards = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -16,9 +17,11 @@ class _AuthorizedCardsScreenState extends State<AuthorizedCardsPage> {
   }
 
   Future<void> _loadAuthorizedCards() async {
+    setState(() => _isLoading = true);
     List<Map<String, dynamic>> cards = await ApiService.fetchAuthorizedCards();
     setState(() {
       authorizedCards = cards;
+      _isLoading = false;
     });
   }
 
@@ -107,31 +110,36 @@ class _AuthorizedCardsScreenState extends State<AuthorizedCardsPage> {
       appBar: AppBar(title: const Text('Authorized Cards')),
       body: RefreshIndicator(
         onRefresh: _loadAuthorizedCards,
-        child: authorizedCards.isEmpty
-            ? const Center(child: Text("No authorized cards found"))
-            : ListView.builder(
-                itemCount: authorizedCards.length,
-                itemBuilder: (context, index) {
-                  var card = authorizedCards[index];
-                  var user = card['user'] ?? {};
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.blue),
+              )
+            : authorizedCards.isEmpty
+                ? const Center(child: Text("No authorized cards found"))
+                : ListView.builder(
+                    itemCount: authorizedCards.length,
+                    itemBuilder: (context, index) {
+                      var card = authorizedCards[index];
+                      var user = card['user'] ?? {};
 
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                        vertical: 8.0, horizontal: 16.0),
-                    elevation: 3,
-                    child: ListTile(
-                      leading: const Icon(Icons.credit_card),
-                      title: Text("Card UID: ${card['card_uid']}"),
-                      subtitle: Text(
-                          "User: ${user['name'] ?? 'Unknown'} (${user['email'] ?? 'Unknown'})"),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.more_vert),
-                        onPressed: () => _showCardOptions(card),
-                      ),
-                    ),
-                  );
-                },
-              ),
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            vertical: 8.0, horizontal: 16.0),
+                        elevation: 3,
+                        child: ListTile(
+                          leading: const Icon(Icons.credit_card),
+                          title: Text("Card UID: ${card['card_uid']}"),
+                          subtitle: Text(
+                            "User: ${user['name'] ?? 'Unknown'} (${user['email'] ?? 'Unknown'})",
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.more_vert),
+                            onPressed: () => _showCardOptions(card),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _openAddCardForm,

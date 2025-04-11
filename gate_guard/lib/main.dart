@@ -28,13 +28,23 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true; // To toggle password visibility
+  bool _obscurePassword = true;
+  bool _isLoading = false; // New loading flag
 
   void _handleLogin() async {
+    setState(() {
+      _isLoading = true; // Show loading spinner
+    });
+
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
     var result = await ApiService.loginUser(email, password);
+
+    setState(() {
+      _isLoading = false; // Hide loading spinner
+    });
+
     if (result != null) {
       Navigator.pushReplacement(
         context,
@@ -59,22 +69,17 @@ class _LoginPageState extends State<LoginPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 50),
-                // Logo/Icon
                 const CircleAvatar(
                   radius: 60,
                   backgroundColor: Colors.blue,
                   child: Icon(Icons.lock, color: Colors.white, size: 40),
                 ),
                 const SizedBox(height: 40),
-                // Title
                 const Text(
                   "Welcome to GateGuard!",
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-
                 const SizedBox(height: 40),
-
-                // Email Field
                 TextField(
                   controller: _emailController,
                   decoration: InputDecoration(
@@ -86,8 +91,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Password Field with visibility toggle
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -113,12 +116,10 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 30),
-
-                // Login Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _handleLogin,
+                    onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
@@ -127,10 +128,18 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                     ),
-                    child: const Text("LOGIN", style: TextStyle(fontSize: 16)),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text("LOGIN", style: TextStyle(fontSize: 16)),
                   ),
                 ),
-
                 const SizedBox(height: 20),
               ],
             ),
@@ -155,12 +164,19 @@ class _HomeScreenState extends State<HomeScreen> {
   int totalUsers = 0;
   List<dynamic> userCards = [];
   List<dynamic> cardScans = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchDashboardData();
-    _fetchCardScans();
+    _initializeDashboard();
+  }
+
+  Future<void> _initializeDashboard() async {
+    setState(() => _isLoading = true); // Start loading
+    await _fetchDashboardData();
+    await _fetchCardScans();
+    setState(() => _isLoading = false); // Done loading
   }
 
   Future<void> _fetchDashboardData() async {
@@ -244,85 +260,105 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeScreen() {
     return RefreshIndicator(
-      onRefresh: _fetchDashboardData, // Correct function name for refreshing
+      onRefresh: _initializeDashboard, // refresh both data sets
       child: SingleChildScrollView(
-        physics:
-            const AlwaysScrollableScrollPhysics(), // Allow pull even when content is small
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Welcome, ${widget.user['name']}!',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            if (widget.user['role'] == 'admin') ...[
-              Center(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    GestureDetector(
-                      onTap: _navigateToAuthorizedCards,
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: _buildInfoCard('Authorized Cards',
-                            authorizedCards, Icons.credit_card),
+        child: _isLoading
+            ? const Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 100),
+                  child: CircularProgressIndicator(color: Colors.blue),
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome, ${widget.user['name']}!',
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  if (widget.user['role'] == 'admin') ...[
+                    Center(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: _navigateToAuthorizedCards,
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: _buildInfoCard('Authorized Cards',
+                                  authorizedCards, Icons.credit_card),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          GestureDetector(
+                            onTap: _navigateToUsersList,
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: _buildInfoCard(
+                                  'Users', totalUsers, Icons.people),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    GestureDetector(
-                        onTap: _navigateToUsersList,
+                  ] else ...[
+                    Center(
+                      child: GestureDetector(
+                        onTap: _navigatetoUserCards,
                         child: SizedBox(
-                            width: double.infinity,
-                            child: _buildInfoCard(
-                                'Users', totalUsers, Icons.people))),
+                          width: double.infinity,
+                          child: _buildInfoCard('Your Cards', userCards.length,
+                              Icons.credit_card),
+                        ),
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
-            ] else ...[
-              Center(
-                child: GestureDetector(
-                  onTap: _navigatetoUserCards,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: _buildInfoCard(
-                        'Your Cards', userCards.length, Icons.credit_card),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }
 
   Widget _buildHistoryScreen() {
     return RefreshIndicator(
-      onRefresh: _fetchCardScans,
-      child: cardScans.isEmpty
-          ? const Center(child: Text("No scan history available"))
-          : ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: cardScans.length,
-              itemBuilder: (context, index) {
-                var scan = cardScans[index];
-                return Card(
-                  child: ListTile(
-                    leading: Icon(
-                        scan['accessgranted']
-                            ? Icons.check_circle
-                            : Icons.cancel,
-                        color:
-                            scan['accessgranted'] ? Colors.green : Colors.red),
-                    title: Text('User: ${scan['user_name']}'),
-                    subtitle: Text(
-                        'Date: ${DateFormat('dd-MM-yyyy hh:mm:ss a').format(DateTime.parse(scan['timestamp']))}'),
-                  ),
-                );
-              },
-            ),
+      onRefresh: _initializeDashboard, // or just _fetchCardScans if preferred
+      child: _isLoading
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 100),
+                child: CircularProgressIndicator(color: Colors.blue),
+              ),
+            )
+          : cardScans.isEmpty
+              ? const Center(child: Text("No scan history available"))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: cardScans.length,
+                  itemBuilder: (context, index) {
+                    var scan = cardScans[index];
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(
+                          scan['accessgranted']
+                              ? Icons.check_circle
+                              : Icons.cancel,
+                          color:
+                              scan['accessgranted'] ? Colors.green : Colors.red,
+                        ),
+                        title: Text('User: ${scan['user_name']}'),
+                        subtitle: Text(
+                          'Date: ${DateFormat('dd-MM-yyyy hh:mm:ss a').format(
+                            DateTime.parse(scan['timestamp']),
+                          )}',
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 
