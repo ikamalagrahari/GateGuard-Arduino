@@ -5,8 +5,10 @@ class ApiService {
   // static const String baseUrl = "http://192.168.1.9:5000/api"; // Home WIFI
   // static const String baseUrl =
   //     "http://192.168.20.175:5000/api"; // Mobile Physical
+  // static const String baseUrl =
+  //     "http://192.168.187.132:5000/api"; // Mobile Hotspot
   static const String baseUrl =
-      "http://192.168.187.132:5000/api"; // Mobile Hotspot
+      "https://gateguard-api.onrender.com/api"; // Cloud Server
 
   static Future<Map<String, dynamic>?> loginUser(
       String email, String password) async {
